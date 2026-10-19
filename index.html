@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BMI &amp; BMR Calculator</title>
+  <style>
+    /* ── Reset & base ───────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f0f4f8; --card: #ffffff; --accent: #4f46e5;
+      --accent-light: #818cf8; --text: #1e293b; --muted: #64748b;
+      --border: #e2e8f0; --radius: 14px; --shadow: 0 4px 24px rgba(0,0,0,.08);
+      --green: #22c55e; --yellow: #eab308; --orange: #f97316; --red: #ef4444;
+    }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg); color: var(--text); min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 2rem 1rem 4rem;
+    }
+
+    /* ── Header ─────────────────────────────────────────── */
+    header { text-align: center; margin-bottom: 2rem; }
+    header h1 { font-size: 2rem; font-weight: 700; color: var(--accent); }
+    header p  { color: var(--muted); margin-top: .35rem; font-size: .95rem; }
+
+    /* ── Unit toggle ────────────────────────────────────── */
+    .unit-toggle {
+      display: flex; gap: 0; border-radius: 999px; overflow: hidden;
+      border: 2px solid var(--accent); margin-bottom: 2rem; width: fit-content;
+    }
+    .unit-toggle button {
+      padding: .55rem 1.6rem; border: none; cursor: pointer;
+      font-weight: 600; font-size: .9rem; transition: .25s;
+      background: transparent; color: var(--accent);
+    }
+    .unit-toggle button.active {
+      background: var(--accent); color: #fff;
+    }
+
+    /* ── Cards container ────────────────────────────────── */
+    .cards {
+      display: grid; gap: 2rem; width: 100%; max-width: 920px;
+      grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+    }
+    .card {
+      background: var(--card); border-radius: var(--radius);
+      box-shadow: var(--shadow); padding: 2rem; position: relative;
+      border: 1px solid var(--border);
+    }
+    .card h2 {
+      font-size: 1.25rem; margin-bottom: .25rem; display: flex;
+      align-items: center; gap: .5rem;
+    }
+    .card h2 .icon { font-size: 1.5rem; }
+    .card .subtitle { color: var(--muted); font-size: .82rem; margin-bottom: 1.4rem; }
+
+    /* ── Form elements ──────────────────────────────────── */
+    .field { margin-bottom: 1.1rem; }
+    .field label { display: block; font-weight: 600; font-size: .85rem; margin-bottom: .3rem; }
+    .field input, .field select {
+      width: 100%; padding: .6rem .85rem; border: 1.5px solid var(--border);
+      border-radius: 10px; font-size: .95rem; outline: none; transition: .2s;
+      background: #f8fafc;
+    }
+    .field input:focus, .field select:focus {
+      border-color: var(--accent-light); box-shadow: 0 0 0 3px rgba(79,70,229,.12);
+    }
+    .row { display: flex; gap: .75rem; }
+    .row .field { flex: 1; }
+
+    .gender-group { display: flex; gap: .6rem; }
+    .gender-group label {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      gap: .4rem; padding: .55rem; border: 1.5px solid var(--border);
+      border-radius: 10px; cursor: pointer; font-weight: 500; font-size: .9rem;
+      transition: .2s; background: #f8fafc;
+    }
+    .gender-group input { display: none; }
+    .gender-group input:checked + span { color: var(--accent); }
+    .gender-group label:has(input:checked) {
+      border-color: var(--accent); background: rgba(79,70,229,.06);
+    }
+
+    /* ── Button ─────────────────────────────────────────── */
+    .btn {
+      width: 100%; padding: .75rem; border: none; border-radius: 10px;
+      background: var(--accent); color: #fff; font-size: 1rem;
+      font-weight: 600; cursor: pointer; transition: .2s; margin-top: .5rem;
+    }
+    .btn:hover { background: #4338ca; }
+    .btn:active { transform: scale(.98); }
+
+    /* ── Results ─────────────────────────────────────────── */
+    .result {
+      margin-top: 1.4rem; padding: 1.2rem; border-radius: 12px;
+      background: #f8fafc; border: 1px solid var(--border);
+      display: none; animation: fadeIn .4s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .result.show { display: block; }
+
+    .result .big-number {
+      font-size: 2.4rem; font-weight: 800; text-align: center;
+      line-height: 1.1;
+    }
+    .result .label-tag {
+      display: block; text-align: center; font-weight: 600;
+      font-size: .95rem; margin-top: .35rem;
+    }
+
+    /* BMI gauge */
+    .bmi-gauge { margin: 1rem 0 .5rem; position: relative; height: 12px; border-radius: 99px; overflow: visible;
+      background: linear-gradient(to right, var(--green) 0% 25%, var(--yellow) 25% 43%, var(--orange) 43% 62%, var(--red) 62% 100%);
+    }
+    .bmi-gauge .needle {
+      position: absolute; top: -4px; width: 6px; height: 20px;
+      background: var(--text); border-radius: 3px; transform: translateX(-50%);
+      transition: left .5s ease;
+    }
+    .gauge-labels { display: flex; justify-content: space-between; font-size: .7rem; color: var(--muted); margin-top: 4px; }
+
+    /* BMR TDEE table */
+    .tdee-table { width: 100%; border-collapse: collapse; margin-top: .8rem; font-size: .82rem; }
+    .tdee-table th, .tdee-table td { padding: .45rem .6rem; text-align: left; border-bottom: 1px solid var(--border); }
+    .tdee-table th { font-weight: 700; color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .3px; }
+    .tdee-table td:last-child { font-weight: 700; text-align: right; color: var(--accent); }
+
+    /* ── Responsive ─────────────────────────────────────── */
+    @media (max-width: 500px) {
+      .cards { grid-template-columns: 1fr; }
+      .card { padding: 1.4rem; }
+      header h1 { font-size: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>BMI &amp; BMR Calculator</h1>
+    <p>Know your body metrics — quickly and accurately</p>
+  </header>
+
+  <!-- Unit toggle -->
+  <div class="unit-toggle">
+    <button class="active" onclick="setUnit('metric')">Metric</button>
+    <button onclick="setUnit('imperial')">Imperial</button>
+  </div>
+
+  <div class="cards">
+
+    <!-- ═══ BMI Card ═══ -->
+    <div class="card">
+      <h2><span class="icon">⚖️</span> BMI Calculator</h2>
+      <p class="subtitle">Body Mass Index — a quick weight-to-height ratio</p>
+
+      <div class="field">
+        <label id="bmi-weight-label">Weight (kg)</label>
+        <input type="number" id="bmi-weight" placeholder="e.g. 70" min="1" step="any" />
+      </div>
+      <div class="field" id="bmi-height-metric">
+        <label>Height (cm)</label>
+        <input type="number" id="bmi-height-cm" placeholder="e.g. 175" min="1" step="any" />
+      </div>
+      <div class="row" id="bmi-height-imperial" style="display:none;">
+        <div class="field">
+          <label>Feet</label>
+          <input type="number" id="bmi-feet" placeholder="5" min="1" step="1" />
+        </div>
+        <div class="field">
+          <label>Inches</label>
+          <input type="number" id="bmi-inches" placeholder="9" min="0" max="11" step="any" />
+        </div>
+      </div>
+
+      <button class="btn" onclick="calcBMI()">Calculate BMI</button>
+
+      <div class="result" id="bmi-result">
+        <div class="big-number" id="bmi-value">—</div>
+        <span class="label-tag" id="bmi-category">—</span>
+        <div class="bmi-gauge"><div class="needle" id="bmi-needle"></div></div>
+        <div class="gauge-labels">
+          <span>Underweight</span><span>Normal</span><span>Overweight</span><span>Obese</span>
+        </div>
+        <p id="bmi-info" style="margin-top:.8rem; font-size:.84rem; color:var(--muted); text-align:center;"></p>
+      </div>
+    </div>
+
+    <!-- ═══ BMR Card ═══ -->
+    <div class="card">
+      <h2><span class="icon">🔥</span> BMR Calculator</h2>
+      <p class="subtitle">Basal Metabolic Rate — calories your body burns at rest</p>
+
+      <div class="field">
+        <label>Gender</label>
+        <div class="gender-group">
+          <label><input type="radio" name="gender" value="male" checked /><span>♂ Male</span></label>
+          <label><input type="radio" name="gender" value="female" /><span>♀ Female</span></label>
+        </div>
+      </div>
+      <div class="field">
+        <label>Age (years)</label>
+        <input type="number" id="bmr-age" placeholder="e.g. 25" min="1" max="120" step="1" />
+      </div>
+      <div class="field">
+        <label id="bmr-weight-label">Weight (kg)</label>
+        <input type="number" id="bmr-weight" placeholder="e.g. 70" min="1" step="any" />
+      </div>
+      <div class="field" id="bmr-height-metric">
+        <label>Height (cm)</label>
+        <input type="number" id="bmr-height-cm" placeholder="e.g. 175" min="1" step="any" />
+      </div>
+      <div class="row" id="bmr-height-imperial" style="display:none;">
+        <div class="field">
+          <label>Feet</label>
+          <input type="number" id="bmr-feet" placeholder="5" min="1" step="1" />
+        </div>
+        <div class="field">
+          <label>Inches</label>
+          <input type="number" id="bmr-inches" placeholder="9" min="0" max="11" step="any" />
+        </div>
+      </div>
+
+      <button class="btn" onclick="calcBMR()">Calculate BMR</button>
+
+      <div class="result" id="bmr-result">
+        <div class="big-number" id="bmr-value">—</div>
+        <span class="label-tag" style="color:var(--muted);">kcal / day (at rest)</span>
+        <table class="tdee-table">
+          <thead><tr><th>Activity Level</th><th>kcal / day</th></tr></thead>
+          <tbody id="tdee-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- .cards -->
+
+  <script>
+    /* ── State ──────────────────────────────────────────── */
+    let unit = 'metric';
+
+    /* ── Unit toggle ───────────────────────────────────── */
+    function setUnit(u) {
+      unit = u;
+      document.querySelectorAll('.unit-toggle button').forEach(b => b.classList.remove('active'));
+      document.querySelector(`.unit-toggle button:${u === 'metric' ? 'first' : 'last'}-child`).classList.add('active');
+
+      const isMetric = u === 'metric';
+
+      // BMI
+      document.getElementById('bmi-weight-label').textContent = isMetric ? 'Weight (kg)' : 'Weight (lbs)';
+      document.getElementById('bmi-weight').placeholder       = isMetric ? 'e.g. 70' : 'e.g. 154';
+      document.getElementById('bmi-height-metric').style.display   = isMetric ? '' : 'none';
+      document.getElementById('bmi-height-imperial').style.display = isMetric ? 'none' : '';
+
+      // BMR
+      document.getElementById('bmr-weight-label').textContent = isMetric ? 'Weight (kg)' : 'Weight (lbs)';
+      document.getElementById('bmr-weight').placeholder       = isMetric ? 'e.g. 70' : 'e.g. 154';
+      document.getElementById('bmr-height-metric').style.display   = isMetric ? '' : 'none';
+      document.getElementById('bmr-height-imperial').style.display = isMetric ? 'none' : '';
+    }
+
+    /* ── Helpers ────────────────────────────────────────── */
+    function getWeight(prefix) {
+      const w = parseFloat(document.getElementById(`${prefix}-weight`).value);
+      return unit === 'imperial' ? w * 0.453592 : w;  // → kg
+    }
+    function getHeightCm(prefix) {
+      if (unit === 'metric') return parseFloat(document.getElementById(`${prefix}-height-cm`).value);
+      const ft = parseFloat(document.getElementById(`${prefix}-feet`).value) || 0;
+      const inc = parseFloat(document.getElementById(`${prefix}-inches`).value) || 0;
+      return (ft * 12 + inc) * 2.54;
+    }
+
+    /* ── BMI ────────────────────────────────────────────── */
+    function calcBMI() {
+      const w = getWeight('bmi');
+      const h = getHeightCm('bmi');
+      if (!w || !h || w <= 0 || h <= 0) return alert('Please enter valid weight and height.');
+
+      const bmi = w / ((h / 100) ** 2);
+      let cat, color, info;
+      if (bmi < 18.5)      { cat = 'Underweight'; color = 'var(--yellow)'; info = 'You may need to gain weight. Consult a healthcare provider.'; }
+      else if (bmi < 25)   { cat = 'Normal';      color = 'var(--green)';  info = 'Great — your weight is within the healthy range!'; }
+      else if (bmi < 30)   { cat = 'Overweight';  color = 'var(--orange)'; info = 'Slightly above the healthy range. A balanced diet & exercise can help.'; }
+      else                 { cat = 'Obese';        color = 'var(--red)';    info = 'Consider consulting a healthcare professional for guidance.'; }
+
+      document.getElementById('bmi-value').textContent = bmi.toFixed(1);
+      document.getElementById('bmi-value').style.color = color;
+      document.getElementById('bmi-category').textContent = cat;
+      document.getElementById('bmi-category').style.color = color;
+      document.getElementById('bmi-info').textContent = info;
+
+      // Needle position (map BMI 10–40 → 0%–100%)
+      const pct = Math.max(0, Math.min(100, ((bmi - 10) / 30) * 100));
+      document.getElementById('bmi-needle').style.left = pct + '%';
+
+      document.getElementById('bmi-result').classList.add('show');
+    }
+
+    /* ── BMR (Mifflin-St Jeor) ─────────────────────────── */
+    function calcBMR() {
+      const w   = getWeight('bmr');
+      const h   = getHeightCm('bmr');
+      const age = parseInt(document.getElementById('bmr-age').value, 10);
+      const gender = document.querySelector('input[name="gender"]:checked').value;
+
+      if (!w || !h || !age || w <= 0 || h <= 0 || age <= 0) return alert('Please fill in all fields with valid values.');
+
+      let bmr;
+      if (gender === 'male')   bmr = 10 * w + 6.25 * h - 5 * age + 5;
+      else                     bmr = 10 * w + 6.25 * h - 5 * age - 161;
+
+      document.getElementById('bmr-value').textContent = Math.round(bmr).toLocaleString();
+
+      const levels = [
+        ['Sedentary (little / no exercise)',        1.2],
+        ['Lightly active (1–3 days / week)',        1.375],
+        ['Moderately active (3–5 days / week)',     1.55],
+        ['Very active (6–7 days / week)',           1.725],
+        ['Super active (twice daily / physical job)', 1.9],
+      ];
+      const tbody = document.getElementById('tdee-body');
+      tbody.innerHTML = '';
+      levels.forEach(([label, mult]) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${label}</td><td>${Math.round(bmr * mult).toLocaleString()}</td>`;
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById('bmr-result').classList.add('show');
+    }
+
+    /* ── Allow Enter key to submit ─────────────────────── */
+    document.querySelectorAll('.card').forEach((card, i) => {
+      card.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); i === 0 ? calcBMI() : calcBMR(); } });
+    });
+  </script>
+
+</body>
+</html>
